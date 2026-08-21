@@ -1,53 +1,82 @@
 # ==============================================================================
-# Google Cloud APIs Enablement
+# Gemini Notebook Enterprise (formerly "NotebookLM Enterprise")
+# main.tf - API enablement, Discovery Engine service agent, activation wait
+# ==============================================================================
+# The product was renamed NotebookLM Enterprise -> Gemini Notebook Enterprise;
+# the SUBSCRIPTION is still sold under the old name.
+#
+# There is no Terraform resource for the product itself. This blueprint enables
+# the Discovery Engine API, creates the service agent and wires IAM/grounding.
+# Selecting the identity provider, assigning licences and creating notebooks are
+# Cloud console / admin tasks with no Terraform surface.
+#
+# Providers: hashicorp/google, hashicorp/google-beta
+# (google_project_service_identity), hashicorp/time (time_sleep).
 # ==============================================================================
 
+# ---- Locals ----
+
 locals {
-  services = toset(concat(
-    [
-      "discoveryengine.googleapis.com",
-      "aiplatform.googleapis.com",
-    ],
+  # discoveryengine.googleapis.com is the only mandated API; the rest are added
+  # only because an optional feature of this blueprint needs them.
+  # Deliberately NOT enabled: notebooklm.googleapis.com (not a real API) and
+  # aiplatform.googleapis.com (not required by the setup documentation).
+  required_services = concat(
+    ["discoveryengine.googleapis.com"],
     var.enable_gcs_data_store ? ["storage.googleapis.com"] : [],
     var.enable_bigquery_data_store ? ["bigquery.googleapis.com"] : []
-  ))
+  )
+
+  # Label keys must be lowercase and hyphenated - "managedBy" is not valid.
+  common_labels = merge(var.labels, {
+    "managed-by" = "terraform"
+    "solution"   = "gemini-notebook-enterprise"
+  })
+
+  # Sourced from the resource below so consumers get an implicit dependency.
+  discoveryengine_service_agent_email  = google_project_service_identity.discoveryengine.email
+  discoveryengine_service_agent_member = "serviceAccount:${local.discoveryengine_service_agent_email}"
 }
 
-resource "google_project_service" "required_apis" {
-  for_each = local.services
+# ---- API enablement ----
 
-  project                    = var.project_id
-  service                    = each.key
+resource "google_project_service" "required" {
+  for_each = toset(local.required_services)
+
+  project = var.project_id
+  service = each.value
+
+  # Leave APIs enabled on destroy: other workloads likely depend on them, and
+  # disabling Discovery Engine can orphan notebooks and data stores.
   disable_on_destroy         = false
   disable_dependent_services = false
 }
 
-# ==============================================================================
-# Gemini Enterprise Search Engine App
-# ==============================================================================
+# ---- Discovery Engine service agent (P4SA) ----
 
-resource "google_discovery_engine_search_engine" "gemini_search_engine" {
-  count = var.enable_gemini_enterprise_search && var.enable_gcs_data_store ? 1 : 0
+# google_project_service_identity is google-beta only. The service agent is
+# needed for the grounding bucket / BigQuery dataset read grants in datastores.tf.
+resource "google_project_service_identity" "discoveryengine" {
+  provider = google-beta
 
-  project           = var.project_id
-  location          = var.discovery_engine_location
-  collection_id     = "default_collection"
-  engine_id         = var.search_engine_id
-  display_name      = var.search_engine_display_name
-  industry_vertical = "GENERIC"
-  data_store_ids    = [google_discovery_engine_data_store.gcs_data_store[0].data_store_id]
+  project = var.project_id
+  service = "discoveryengine.googleapis.com"
 
-  common_config {
-    company_name = var.company_name
-  }
+  depends_on = [google_project_service.required]
+}
 
-  search_engine_config {
-    search_tier    = "SEARCH_TIER_ENTERPRISE"
-    search_add_ons = ["SEARCH_ADD_ON_LLM"]
-  }
+# ---- Post-enablement activation wait ----
+
+# Enabling the API returns success before the Discovery Engine control plane
+# accepts resource-creation calls, so a fresh project fails the first apply with
+# "Discovery Engine API has not completed initialization". Every downstream
+# Discovery Engine resource MUST depend on this sleep, not on
+# google_project_service.required directly.
+resource "time_sleep" "wait_for_apis" {
+  create_duration = var.api_activation_wait
 
   depends_on = [
-    google_project_service.required_apis,
-    google_discovery_engine_data_store.gcs_data_store
+    google_project_service.required,
+    google_project_service_identity.discoveryengine
   ]
 }

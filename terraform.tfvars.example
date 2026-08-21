@@ -1,51 +1,124 @@
-# ==============================================================================
-# Target Environment Configuration
-# ==============================================================================
-project_id                = "my-company-ai-project"
-region                    = "australia-southeast1"
-discovery_engine_location = "global"
+# Gemini Notebook Enterprise (formerly NotebookLM Enterprise)
+#   cp terraform.tfvars.example terraform.tfvars   # do not commit terraform.tfvars
+# See README.md for prerequisites and MIGRATION_NOTES.md for what changed.
+#
+# DATA RESIDENCY: `location` defaults to `global`. Australian at-rest data
+# residency is NOT available for this product. Supported multi-regions:
+# global | us | eu. In-country regions ca | in | asia-northeast1 | sg |
+# europe-west2 are ALLOWLIST-ONLY — contact your Google account team.
+#
+# LICENSING: a licence is required IN ADDITION to the IAM role, and cannot be
+# automated. Users with correct roles cannot use the product without one.
 
-# ==============================================================================
-# Identity Provider Configuration
-# ==============================================================================
-# Use "GSUITE" for Google Workspace / Cloud Identity
-# Use "THIRD_PARTY" for Workforce Identity Federation (Entra ID, Okta, Ping)
-idp_type            = "GSUITE"
-workforce_pool_name = null # e.g., "locations/global/workforcePools/my-enterprise-pool"
+# ============================================================
+# MINIMAL WORKING EXAMPLE
+# ============================================================
 
-# ==============================================================================
-# Gemini Enterprise Engine & App Settings
-# ==============================================================================
-enable_gemini_enterprise_search = true
-search_engine_id                = "gemini-enterprise-search"
-search_engine_display_name       = "Gemini Enterprise Search & Assistant"
-company_name                    = "My Enterprise Organization"
+# REQUIRED. Project hosting Discovery Engine and the subscription.
+project_id = "my-agency-gne-prod"
 
-# ==============================================================================
-# Grounding Data Stores
-# ==============================================================================
-enable_gcs_data_store       = true
-gcs_data_store_id           = "enterprise-docs-store"
-gcs_data_store_display_name = "Enterprise Documents Grounding Store"
-gcs_bucket_name_prefix      = "gemini-enterprise-docs"
+# Location of the grounding GCS bucket / BigQuery dataset ONLY.
+region = "australia-southeast1"
 
-enable_bigquery_data_store       = false
-bigquery_data_store_id           = "enterprise-analytics-store"
-bigquery_data_store_display_name = "Enterprise Analytics Grounding Store"
-bigquery_dataset_id              = "gemini_enterprise_grounding"
+# Discovery Engine multi-region where data stores and notebooks live. Immutable in practice.
+location = "global"
 
-# ==============================================================================
-# IAM User Persona Assignment
-# ==============================================================================
-admin_users = [
-  "ai-admin@example.com"
-]
+# Cost attribution / classification labels, applied to every labelable resource.
+labels = {
+  environment         = "prod"
+  cost-centre         = "1234"
+  data-classification = "official"
+  managed-by          = "terraform"
+}
 
-editor_users = [
-  "content-curator@example.com"
-]
+# Pause after API enablement; raise on brand-new projects.
+api_activation_wait = "120s"
 
-standard_users = [
-  "researcher1@example.com",
-  "data-analyst@example.com"
-]
+# "google" (Workspace / Cloud Identity) or "workforce_identity_federation".
+identity_provider_type = "google"
+
+# Selecting the identity provider itself is a MANUAL console step — see outputs.
+workforce_pool_id                   = null
+workforce_provider_id               = null
+workforce_pool_groups               = []
+grant_all_workforce_pool_identities = false
+
+# Personas: supply BARE emails (no "user:" / "group:" prefix); groups preferred.
+notebooklm_admin_groups = ["notebooklm-admins@example.gov.au"]
+notebooklm_admin_users  = []
+notebooklm_user_groups  = ["notebooklm-users@example.gov.au"]
+notebooklm_users        = []
+
+# ============================================================
+# OPTIONAL — uncomment what you need
+# ============================================================
+
+# ---- Additional personas ----
+# notebook_editor_groups            = ["notebooklm-editors@example.gov.au"]
+# notebook_editor_users             = []
+# notebook_viewer_groups            = ["notebooklm-viewers@example.gov.au"]
+# notebook_viewer_users             = []
+# gemini_enterprise_app_admin_groups = ["gne-app-admins@example.gov.au"]
+# gemini_enterprise_app_admin_users  = []
+# gemini_enterprise_app_groups       = ["gne-app-users@example.gov.au"]
+# gemini_enterprise_app_users        = []
+
+# ---- Workforce Identity Federation (external IdP: Entra ID, Okta, ADFS) ----
+# identity_provider_type = "workforce_identity_federation"
+# workforce_pool_id      = "agency-workforce-pool"
+# workforce_provider_id  = "entra-id"
+# # Each entry becomes a principalSet IAM member — the recommended pattern.
+# workforce_pool_groups  = ["notebooklm-users", "notebooklm-admins"]
+# # Whole-pool grant is broad; leave false for government workloads.
+# grant_all_workforce_pool_identities = false
+
+# ---- Gemini Enterprise app (requires at least one data store below) ----
+# enable_gemini_enterprise_app       = true
+# gemini_enterprise_app_id           = "gemini-enterprise-app"
+# gemini_enterprise_app_display_name = "Gemini Enterprise"
+# company_name                       = "Example Organisation"
+# # Tier and add-ons carry cost.
+# search_tier    = "SEARCH_TIER_ENTERPRISE"
+# search_add_ons = ["SEARCH_ADD_ON_LLM"]
+
+# ---- GCS grounding data store ----
+# enable_gcs_data_store       = true
+# gcs_data_store_id           = "documents-data-store"
+# gcs_data_store_display_name = "Documents Grounding Store"
+# # Bucket name prefix: max 20 chars, lowercase / numbers / hyphens.
+# gcs_bucket_name_prefix      = "gne-docs"
+# # Pin an exact bucket name for agency naming standards; must be globally unique.
+# gcs_bucket_name_override    = "agency-gne-grounding-prod"
+# # DESTRUCTIVE: true lets `terraform destroy` delete a non-empty bucket.
+# gcs_bucket_force_destroy    = false
+# # Retention in days — blocks deletion/overwrite before this age (null = none).
+# gcs_bucket_retention_days   = 2555
+# # Existing bucket to receive Cloud Storage access logs.
+# gcs_bucket_log_bucket       = "agency-storage-access-logs"
+# Document import is a SEPARATE manual step (console, gcloud, documents.import).
+
+# ---- BigQuery grounding data store ----
+# enable_bigquery_data_store       = true
+# bigquery_data_store_id           = "analytics-data-store"
+# bigquery_data_store_display_name = "Analytics Grounding Store"
+# # Letters, numbers and underscores only. Immutable.
+# bigquery_dataset_id              = "gne_grounding"
+# # null falls back to `region`. Immutable after creation.
+# bigquery_dataset_location        = "australia-southeast1"
+
+# ---- Preview: notebook content as a data store (Pre-GA) ----
+# Pre-GA, CONSOLE-ONLY (Terraform creates nothing), indexes notebook TITLES only
+# — not notebook content — one data store per app, and the region must match
+# across notebooks, data store and app. Off by default behind accept_pre_ga_terms.
+# enable_gemini_notebook_data_store_preview = true
+# accept_pre_ga_terms                       = true
+
+# ---- Model Armor ----
+# Flags only: template creation and association are manual console steps.
+# enable_model_armor      = true
+# model_armor_template_id = "gne-prompt-guard"
+
+# ---- Additional IAM bindings (escape hatch; fully qualified members) ----
+# additional_iam_bindings = [
+#   { role = "roles/discoveryengine.viewer", member = "serviceAccount:reporting@my-agency-gne-prod.iam.gserviceaccount.com" },
+# ]

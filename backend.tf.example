@@ -1,0 +1,10 @@
+# Rename to backend.tf, then set the bucket and prefix below (literals only —
+# backend blocks cannot use variables). Create the bucket first, with object
+# versioning enabled, and use a different prefix per environment.
+
+terraform {
+  backend "gcs" {
+    bucket = "CHANGE-ME-agency-tfstate-prod"
+    prefix = "gemini-notebook-enterprise/prod"
+  }
+}
