@@ -1,0 +1,51 @@
+# ==============================================================================
+# Target Environment Configuration
+# ==============================================================================
+project_id                = "my-company-ai-project"
+region                    = "australia-southeast1"
+discovery_engine_location = "global"
+
+# ==============================================================================
+# Identity Provider Configuration
+# ==============================================================================
+# Use "GSUITE" for Google Workspace / Cloud Identity
+# Use "THIRD_PARTY" for Workforce Identity Federation (Entra ID, Okta, Ping)
+idp_type            = "GSUITE"
+workforce_pool_name = null # e.g., "locations/global/workforcePools/my-enterprise-pool"
+
+# ==============================================================================
+# Gemini Enterprise Engine & App Settings
+# ==============================================================================
+enable_gemini_enterprise_search = true
+search_engine_id                = "gemini-enterprise-search"
+search_engine_display_name       = "Gemini Enterprise Search & Assistant"
+company_name                    = "My Enterprise Organization"
+
+# ==============================================================================
+# Grounding Data Stores
+# ==============================================================================
+enable_gcs_data_store       = true
+gcs_data_store_id           = "enterprise-docs-store"
+gcs_data_store_display_name = "Enterprise Documents Grounding Store"
+gcs_bucket_name_prefix      = "gemini-enterprise-docs"
+
+enable_bigquery_data_store       = false
+bigquery_data_store_id           = "enterprise-analytics-store"
+bigquery_data_store_display_name = "Enterprise Analytics Grounding Store"
+bigquery_dataset_id              = "gemini_enterprise_grounding"
+
+# ==============================================================================
+# IAM User Persona Assignment
+# ==============================================================================
+admin_users = [
+  "ai-admin@example.com"
+]
+
+editor_users = [
+  "content-curator@example.com"
+]
+
+standard_users = [
+  "researcher1@example.com",
+  "data-analyst@example.com"
+]
