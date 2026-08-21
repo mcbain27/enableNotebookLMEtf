@@ -134,7 +134,7 @@ locals {
   EOT
 
   runbook_step_model_armor = <<-EOT
-    [MODEL ARMOR] Apply template "${var.model_armor_template_id}" manually;
+    [MODEL ARMOR] Apply template "${coalesce(var.model_armor_template_id, "<template-id>")}" manually;
     Terraform creates no association. NEEDS VERIFICATION: console path
     unconfirmed — find Model Armor via the console search bar, not a guess.
   EOT
@@ -143,8 +143,8 @@ locals {
     [IDENTITY PROVIDER] Set it in the Cloud console on the Gemini Notebook
     Enterprise page for ${var.project_id}. Console only: one IdP per project, no
     API, so Terraform cannot detect or correct drift. Changing it later is
-    disruptive. Workforce Identity Federation — pool ${var.workforce_pool_id},
-    provider ${var.workforce_provider_id}. `google.subject` MUST map to the
+    disruptive. Workforce Identity Federation — pool ${coalesce(var.workforce_pool_id, "<pool-id>")},
+    provider ${coalesce(var.workforce_provider_id, "<provider-id>")}. `google.subject` MUST map to the
     email address field or licensing and sharing break; Entra ID apps need a
     group claim with "All groups".
   EOT

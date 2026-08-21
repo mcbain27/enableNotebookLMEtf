@@ -159,6 +159,12 @@ resource "google_discovery_engine_data_store" "gcs" {
   # skip_default_schema_creation is left at its default (false): the Gemini
   # Enterprise app expects the default schema.
 
+  lifecycle {
+    ignore_changes = [
+      document_processing_config,
+    ]
+  }
+
   depends_on = [
     time_sleep.wait_for_apis,
     google_storage_bucket_iam_member.discoveryengine_reader,
@@ -225,6 +231,12 @@ resource "google_discovery_engine_data_store" "bigquery" {
   industry_vertical = "GENERIC"
   content_config    = "NO_CONTENT"
   solution_types    = ["SOLUTION_TYPE_SEARCH"]
+
+  lifecycle {
+    ignore_changes = [
+      document_processing_config,
+    ]
+  }
 
   depends_on = [
     time_sleep.wait_for_apis,

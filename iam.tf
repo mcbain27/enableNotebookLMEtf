@@ -35,7 +35,7 @@ locals {
 
   # Pools always live under locations/global - this is the pool's own namespace,
   # not the Discovery Engine multi-region in var.location.
-  wif_principal_base = local.wif_enabled ? "principalSet://iam.googleapis.com/locations/global/workforcePools/${var.workforce_pool_id}" : ""
+  wif_principal_base = local.wif_enabled ? "principalSet://iam.googleapis.com/locations/global/workforcePools/${coalesce(var.workforce_pool_id, "none")}" : ""
 
   wif_all_identities_members = local.wif_enabled && var.grant_all_workforce_pool_identities ? ["${local.wif_principal_base}/*"] : []
 
